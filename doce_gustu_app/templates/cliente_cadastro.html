@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block miolo %}
+<main class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card p-4 shadow-sm" style="background-color: #fff;">
+                <h2 class="card-title text-center mb-4">Crie sua Conta</h2>
+                
+                <form method="POST" action="{% url 'doce_gustu_app:criar_cliente' %}">
+                    {% csrf_token %}
+                    
+                    <!-- Dados Pessoais -->
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome Completo</label>
+                        <input type="text" class="form-control" id="nome" name="nome" placeholder="Seu nome completo" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Endereço de E-mail</label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="nome@exemplo.com" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="telefone" class="form-label">Telefone (será seu login)</label>
+                        <input type="tel" class="form-control" id="telefone" name="telefone" 
+                               placeholder="(11) 99999-9999" required>
+                               {% comment %} pattern="\([0-9]{2}\) [0-9]{5}-[0-9]{4}" 
+                               title="Formato: (11) 99999-9999" {% endcomment %}
+                               
+                               
+                        <div class="form-text">Este será seu usuário para fazer login</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="senha" class="form-label">Senha (6 dígitos numéricos)</label>
+                        <input type="password" class="form-control" id="senha" name="senha" 
+                               placeholder="000000" pattern="[0-9]{6}" maxlength="6" 
+                               title="Digite exatamente 6 números" required>
+                        <div class="form-text">A senha deve conter exatamente 6 números</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="confirmar_senha" class="form-label">Confirmar Senha</label>
+                        <input type="password" class="form-control" id="confirmar_senha" name="confirmar_senha" 
+                               placeholder="Digite a senha novamente" pattern="[0-9]{6}" maxlength="6" required>
+                    </div>
+
+                    <!-- Endereços de Entrega -->
+                    <h4 class="mt-5 mb-3">Endereços de Entrega</h4>
+                    <div id="enderecos-container">
+                        <div class="endereco-bloco p-3 border rounded mb-3">
+                            <div class="mb-3">
+                                <label class="form-label">Apelido do Endereço</label>
+                                <input type="text" class="form-control" name="enderecos[0][apelido]" placeholder="Ex: Casa, Trabalho" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Rua e Número</label>
+                                <div class="row">
+                                    <div class="col-8">
+                                        <input type="text" class="form-control" name="enderecos[0][rua]" placeholder="Rua das Flores" required>
+                                    </div>
+                                <div class="col-4">
+                                    <input type="text" class="form-control" name="enderecos[0][numero]" placeholder="123" required>
+                                </div>
+                        </div>
+</div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Bairro</label>
+                                    <input type="text" class="form-control" name="enderecos[0][bairro]" placeholder="Centro" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">CEP</label>
+                                    <input type="text" class="form-control" name="enderecos[0][cep]" placeholder="00000-000" pattern="[0-9]{5}-[0-9]{3}" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ponto de Referência (opcional)</label>
+                                <input type="text" class="form-control" name="enderecos[0][referencia]" placeholder="Ex: Próximo à padaria">
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm remover-endereco d-none">Remover</button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mb-4">
+                        <button type="button" class="btn btn-outline-secondary" id="add-endereco">
+                            + Adicionar outro endereço
+                        </button>
+                    </div>
+                        
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">Criar Conta</button>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <p>Já tem uma conta? <a href="{% url 'doce_gustu_app:login' %}">Faça login aqui</a></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    document.getElementById('add-endereco').addEventListener('click', function() {
+        const container = document.getElementById('enderecos-container');
+        const novoIndex = container.children.length;
+        const novoEnderecoHtml = `
+    <div class="endereco-bloco p-3 border rounded mb-3">
+        <div class="mb-3">
+            <label class="form-label">Apelido do Endereço</label>
+            <input type="text" class="form-control" name="enderecos[${novoIndex}][apelido]" placeholder="Ex: Casa, Trabalho" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Rua e Número</label>
+            <div class="row">
+                <div class="col-8">
+                    <input type="text" class="form-control" name="enderecos[${novoIndex}][rua]" placeholder="Rua das Flores" required>
+                </div>
+                <div class="col-4">
+                    <input type="text" class="form-control" name="enderecos[${novoIndex}][numero]" placeholder="123" required>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Bairro</label>
+                <input type="text" class="form-control" name="enderecos[${novoIndex}][bairro]" placeholder="Centro" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">CEP</label>
+                <input type="text" class="form-control" name="enderecos[${novoIndex}][cep]" placeholder="00000-000" pattern="[0-9]{5}-[0-9]{3}" required>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Ponto de Referência (opcional)</label>
+            <input type="text" class="form-control" name="enderecos[${novoIndex}][referencia]" placeholder="Ex: Próximo à padaria">
+        </div>
+        <button type="button" class="btn btn-outline-danger btn-sm remover-endereco">Remover</button>
+    </div>
+`;
+        container.insertAdjacentHTML('beforeend', novoEnderecoHtml);
+
+        // Atualizar eventos de remoção
+        document.querySelectorAll('.remover-endereco').forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.endereco-bloco').remove();
+            });
+        });
+    });
+</script>
+{% endblock miolo %}

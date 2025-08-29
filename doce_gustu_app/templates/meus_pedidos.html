@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block miolo %}
+<div class="container my-5">
+    <h2 class="mb-4">Meus Pedidos</h2>
+    
+    {% for pedido in pedidos %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <h5>Pedido #{{ pedido.id }}</h5>
+                <span class="badge bg-{{ pedido.status_cor }}">{{ pedido.get_status_display }}</span>
+            </div>
+            <p>Data: {{ pedido.data_criacao|date:"d/m/Y H:i" }}</p>
+            <p>Total: R$ {{ pedido.total }}</p>
+            <a href="{% url 'doce_gustu_app:detalhe_pedido' pedido.id %}" class="btn btn-sm btn-outline-primary">
+                Ver Detalhes
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-5">
+        <p class="text-muted">Nenhum pedido encontrado.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block miolo %}
+<div class="container my-5 text-center">
+    <div class="alert alert-success py-5">
+        <h2>🎉 Pedido Confirmado!</h2>
+        <p class="lead">Número do pedido: <strong>#{{ pedido.id }}</strong></p>
+        <p>Seu pedido está sendo preparado!</p>
+    </div>
+    
+    <a href="{% url 'doce_gustu_app:meus_pedidos' %}" class="btn btn-primary me-3">
+        Acompanhar Meus Pedidos
+    </a>
+    <a href="{% url 'doce_gustu_app:home' %}" class="btn btn-outline-secondary">
+        Continuar Comprando
+    </a>
+</div>
+{% endblock %}

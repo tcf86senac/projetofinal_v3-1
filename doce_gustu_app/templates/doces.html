@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block miolo %}
+<div class="container my-5">
+    <!-- Cabeçalho da página -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h2 class="fw-bold">Todos os Doces</h2>
+            <p class="text-muted">Deliciosas opções para adoçar seu dia</p>
+        </div>
+    </div>
+
+    <!-- Grid de produtos -->
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+        {% for doce in doces %}
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <!-- Imagem do produto -->
+                <img src="{{ doce.imagem_url }}" class="card-img-top" alt="{{ doce.nome }}" style="height: 250px; object-fit: cover;">
+                
+                <div class="card-body d-flex flex-column">
+                    <!-- Nome e descrição -->
+                    <h5 class="card-title">{{ doce.nome }}</h5>
+                    <p class="card-text flex-grow-1">{{ doce.descricao }}</p>
+                    
+                    <!-- Preço e botão -->
+                    <div class="mt-auto">
+                        <p class="card-text fw-bold text-primary">R$ {{ doce.preco }}</p>
+                        <div class="d-grid">
+                            <button class="btn btn-destaque" style="background-color: var(--cor-destaque); color: #fff;">
+                                Adicionar ao Carrinho
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <!-- Mensagem caso não haja doces -->
+        <div class="col-12 text-center py-5">
+            <div class="alert alert-info" role="alert">
+                <h4 class="alert-heading">Nenhum doce encontrado!</h4>
+                <p>No momento não temos doces disponíveis em nosso cardápio.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock miolo %}

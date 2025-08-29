@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block miolo %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Imagem do Produto -->
+        <div class="col-md-6">
+            <img src="{{ produto.imagem_url }}" class="img-fluid rounded" alt="{{ produto.nome }}">
+        </div>
+        
+        <!-- Informações do Produto -->
+        <div class="col-md-6">
+            <h1 class="mb-3">{{ produto.nome }}</h1>
+            <p class="text-muted">{{ produto.get_categoria_display }}</p>
+            
+            <h3 class="text-success mb-4">R$ {{ produto.preco }}</h3>
+            
+            <p class="mb-4">{{ produto.descricao }}</p>
+            
+            <!-- Verifica se o produto já está no carrinho -->
+            {% if item_no_carrinho %}
+                <!-- SE JÁ ESTIVER NO CARRINHO -->
+                <div class="alert alert-success" id="alert-carrinho">
+                    <h5>✅ Item já adicionado ao carrinho!</h5>
+                    <p class="mb-2">Quantidade: <span id="quantidade-atual">{{ item_no_carrinho.quantidade }}</span></p>
+                    {% if item_no_carrinho.observacoes %}
+                        <p>Observações: <span id="observacoes-atuais">{{ item_no_carrinho.observacoes }}</span></p>
+                    {% endif %}
+                </div>
+                
+                <!-- FORMULÁRIO DE EDIÇÃO (inicialmente escondido) -->
+                <div class="card mb-3" id="form-edicao" style="display: none;">
+                    <div class="card-body">
+                        <h5 class="card-title">✏️ Editar Pedido</h5>
+                        <form method="post" action="{% url 'doce_gustu_app:editar_item_carrinho' produto.id %}" id="form-editar">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="editar_quantidade" class="form-label">Quantidade:</label>
+                                <input type="number" id="editar_quantidade" name="quantidade" 
+                                       class="form-control" 
+                                       value="{{ item_no_carrinho.quantidade }}" min="1" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editar_observacoes" class="form-label">Observações:</label>
+                                <textarea id="editar_observacoes" name="observacoes" 
+                                          class="form-control" rows="3"
+                                          placeholder="Ex: Sem glúten, menos doce...">{{ item_no_carrinho.observacoes }}</textarea>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    💾 Salvar Alterações
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="cancelarEdicao()">
+                                    ❌ Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- BOTÕES PRINCIPAIS (sempre visíveis) -->
+                <div class="d-grid gap-2 d-md-flex" id="botoes-principais">
+                    <button type="button" class="btn btn-outline-primary me-2" onclick="mostrarEdicao()">
+                        ✏️ Editar Pedido
+                    </button>
+                    
+                    <form method="post" action="{% url 'doce_gustu_app:adicionar_carrinho' produto.id %}" class="me-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="quantidade" value="1">
+                        <button type="submit" class="btn btn-primary">
+                            ➕ Adicionar Mais 1
+                        </button>
+                    </form>
+                    
+                    <a href="{% url 'doce_gustu_app:carrinho' %}" class="btn btn-success">
+                        🛒 Finalizar Compra
+                    </a>
+                </div>
+                
+            {% else %}
+                <!-- SE NÃO ESTIVER NO CARRINHO -->
+                <form method="post" action="{% url 'doce_gustu_app:adicionar_carrinho' produto.id %}">
+                    {% csrf_token %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="quantidade" class="form-label">Quantidade:</label>
+                            <input type="number" id="quantidade" name="quantidade" class="form-control" value="1" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="observacoes" class="form-label">Observações (opcional):</label>
+                            <textarea id="observacoes" name="observacoes" class="form-control" rows="3" placeholder="Ex: Sem glúten, menos doce..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-cart-plus" viewBox="0 0 16 16">
+                            <path d="M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9V5.5z"/>
+                            <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                        </svg>
+                        Adicionar ao Carrinho
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript para controlar a edição -->
+<script>
+function mostrarEdicao() {
+    document.getElementById('form-edicao').style.display = 'block';
+    document.getElementById('alert-carrinho').style.display = 'none';
+    document.getElementById('botoes-principais').style.display = 'none';
+}
+
+function cancelarEdicao() {
+    document.getElementById('form-edicao').style.display = 'none';
+    document.getElementById('alert-carrinho').style.display = 'block';
+    document.getElementById('botoes-principais').style.display = 'flex';
+}
+
+// Se houver mensagens de sucesso após edição, mostra os botões normais
+{% if messages %}
+    {% for message in messages %}
+        {% if message.tags == 'success' %}
+            document.getElementById('form-edicao').style.display = 'none';
+            document.getElementById('alert-carrinho').style.display = 'block';
+            document.getElementById('botoes-principais').style.display = 'flex';
+            
+            // Atualiza os valores exibidos
+            document.getElementById('quantidade-atual').textContent = '{{ item_no_carrinho.quantidade }}';
+            {% if item_no_carrinho.observacoes %}
+                document.getElementById('observacoes-atuais').textContent = '{{ item_no_carrinho.observacoes }}';
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+</script>
+{% endblock %}

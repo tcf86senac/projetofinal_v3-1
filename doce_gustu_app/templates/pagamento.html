@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block miolo %}
+<main class="container my-5">
+    <!-- Cabeçalho com saudação personalizada -->
+    <div class="text-center mb-4">
+        <h2>Finalizar Pedido</h2>
+        <p class="text-muted">Olá, <strong>{{ usuario.nome }}</strong>! Confirme seus dados para finalizar a compra.</p>
+    </div>
+    
+    <div class="row">
+        <!-- Resumo do Pedido -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📦 Resumo do Pedido</h5>
+                </div>
+                <div class="card-body">
+                    {% for item in itens_carrinho %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <div>
+                            <h6 class="mb-0">{{ item.quantidade }}x {{ item.produto.nome }}</h6>
+                            {% if item.observacoes %}
+                            <small class="text-muted">Obs: {{ item.observacoes }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="fw-bold">R$ {{ item.subtotal }}</div>
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <h5 class="mb-0">Total:</h5>
+                        <h4 class="mb-0 text-primary"><strong>R$ {{ total_carrinho }}</strong></h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações do Cliente -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">👤 Suas Informações</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Nome:</strong> {{ usuario.nome }}</p>
+                    <p class="mb-1"><strong>Telefone:</strong> {{ usuario.telefone_formatado }}</p>
+                    <p class="mb-0"><strong>Email:</strong> {{ usuario.email }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulário de Pagamento -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">💳 Informações de Pagamento e Entrega</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% url 'doce_gustu_app:processar_pagamento' %}">
+                        {% csrf_token %}
+                        
+                        <!-- Endereço de Entrega -->
+                        <div class="mb-3">
+                            <label class="form-label"><i class="bi bi-geo-alt"></i> Endereço de Entrega</label>
+                            {% if enderecos %}
+                                <select class="form-select" name="endereco_id" required>
+                                    {% for endereco in enderecos %}
+                                    <option value="{{ endereco.id }}" {% if endereco.principal %}selected{% endif %}>
+                                        {{ endereco.apelido }} - {{ endereco.rua }}, {{ endereco.numero }}, {{ endereco.bairro }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">
+                                    <a href="#" class="text-decoration-none">✏️ Cadastrar novo endereço</a>
+                                </small>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    Você não tem endereços cadastrados. 
+                                    <a href="#" class="alert-link">Clique aqui para cadastrar</a>.
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Forma de Pagamento -->
+                        <div class="mb-3">
+                            <label class="form-label"><i class="bi bi-credit-card"></i> Forma de Pagamento</label>
+                            <select class="form-select" name="forma_pagamento" required>
+                                <option value="">Selecione a forma de pagamento</option>
+                                <option value="dinheiro">💵 Dinheiro</option>
+                                <option value="pix">📱 PIX</option>
+                                <option value="cartao">💳 Cartão na Entrega</option>
+                            </select>
+                        </div>
+
+                        <!-- Observações -->
+                        <div class="mb-3">
+                            <label class="form-label"><i class="bi bi-chat-dots"></i> Observações do Pedido</label>
+                            <textarea class="form-control" name="observacoes" rows="3" 
+                                      placeholder="Alguma observação especial? Troco para quanto? Ponto de referência?"></textarea>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-grid gap-2 d-md-flex">
+                            <a href="{% url 'doce_gustu_app:carrinho' %}" class="btn btn-secondary me-md-2">
+                                ← Voltar ao Carrinho
+                            </a>
+                            <button type="submit" class="btn btn-success flex-grow-1">
+                                ✅ Confirmar Pedido
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Aviso de Segurança -->
+            <div class="alert alert-info mt-3">
+                <h6 class="alert-heading"><i class="bi bi-shield-check"></i> Compra Segura</h6>
+                <p class="mb-0 small">Seus dados estão protegidos. Entraremos em contato para confirmar o pedido.</p>
+            </div>
+        </div>
+    </div>
+</main>
+
+<style>
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 15px;
+}
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+.btn {
+    border-radius: 10px;
+    font-weight: 500;
+}
+</style>
+{% endblock %}
