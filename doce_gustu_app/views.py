@@ -1,6 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from .models import Produto, Carrinho, ItemCarrinho, Pedido, ItemPedido  # ← ADICIONE OS NOVOS MODELOS
+from .models import Produto, Carrinho, ItemCarrinho, Pedido, ItemPedido, Cliente, Endereco
+from django.contrib.auth import login
+from django.contrib.auth.hashers import check_password
+from django.db.models import Sum
 
 # View para a página inicial (Home)
 def home(request):
@@ -30,6 +33,37 @@ def home(request):
 
     return render(request, 'index.html', contexto)
 
+# View para a página de login
+def login_view(request):
+    """
+    Trata o formulário de login usando o telefone e a senha.
+    """
+    if request.method == 'POST':
+        telefone = request.POST.get('telefone')
+        senha = request.POST.get('senha')
+        
+        try:
+            # Tenta encontrar o cliente pelo telefone
+            cliente = Cliente.objects.get(telefone=telefone)
+            
+            # 🎯 CORREÇÃO CRÍTICA: Verifique se o cliente está ativo e se a senha está correta
+            if cliente.is_active and check_password(senha, cliente.password):
+                # Se tudo estiver correto, faz o login do usuário
+                login(request, cliente)
+                messages.success(request, f'Bem-vindo(a), {cliente.nome}!')
+                return redirect('doce_gustu_app:home')
+            else:
+                # Se o cliente não estiver ativo ou a senha estiver incorreta
+                messages.error(request, 'Telefone ou senha inválidos. Tente novamente.')
+        
+        except Cliente.DoesNotExist:
+            # Se o cliente não for encontrado
+            messages.error(request, 'Telefone ou senha inválidos. Tente novamente.')
+        
+        return render(request, 'login.html')
+
+    return render(request, 'login.html')
+
 # View para a página de carrinho
 def carrinho(request):
     """
@@ -38,526 +72,338 @@ def carrinho(request):
     if not request.user.is_authenticated:
         messages.warning(request, 'Você precisa fazer login para ver o carrinho.')
         return redirect('doce_gustu_app:login')
-    
-    try:
-        # Busca o carrinho do usuário e seus itens
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        itens_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho).select_related('produto')
-        
-        # Calcula o total do carrinho usando a propriedade subtotal que já existe
-        total_carrinho = sum(item.subtotal for item in itens_carrinho)
-        
-    except Carrinho.DoesNotExist:
-        # Se não tem carrinho, mostra vazio
-        itens_carrinho = []
-        total_carrinho = 0
-    
-    contexto = {
-        'itens_carrinho': itens_carrinho,  # Agora passamos os objetos diretamente
-        'total_carrinho': total_carrinho,
-    }
-    
-    return render(request, 'carrinho.html', contexto)
 
-# View para a página de cadastro de cliente
+    try:
+        # Pega o carrinho do usuário logado
+        carrinho_usuario, criado = Carrinho.objects.get_or_create(cliente=request.user)
+        itens_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho_usuario)
+        
+        # Calcula o total do carrinho
+        total_carrinho = itens_carrinho.aggregate(Sum('subtotal'))['subtotal__sum'] or 0.00
+        
+        contexto = {
+            'itens_carrinho': itens_carrinho,
+            'total_carrinho': total_carrinho,
+        }
+        return render(request, 'carrinho.html', contexto)
+
+    except Exception as e:
+        messages.error(request, f'Ocorreu um erro ao carregar o carrinho: {e}')
+        return redirect('doce_gustu_app:home')
+
+# View para adicionar produtos ao carrinho
+def adicionar_carrinho(request, produto_id):
+    if not request.user.is_authenticated:
+        messages.warning(request, 'Faça login para adicionar itens ao carrinho.')
+        return redirect('doce_gustu_app:login')
+
+    produto = get_object_or_404(Produto, id=produto_id)
+    observacoes = request.POST.get('observacoes', '').strip()
+    quantidade = int(request.POST.get('quantidade', 1))
+
+    carrinho_usuario, criado = Carrinho.objects.get_or_create(cliente=request.user)
+    
+    # Verifica se o produto já existe no carrinho com as mesmas observações
+    item_existente = ItemCarrinho.objects.filter(
+        carrinho=carrinho_usuario,
+        produto=produto,
+        observacoes=observacoes
+    ).first()
+
+    if item_existente:
+        item_existente.quantidade += quantidade
+        item_existente.subtotal = item_existente.quantidade * produto.preco
+        item_existente.save()
+        messages.success(request, f'{produto.nome} foi adicionado novamente ao carrinho.')
+    else:
+        # Se o item não existir, cria um novo
+        subtotal = quantidade * produto.preco
+        ItemCarrinho.objects.create(
+            carrinho=carrinho_usuario,
+            produto=produto,
+            quantidade=quantidade,
+            observacoes=observacoes,
+            subtotal=subtotal
+        )
+        messages.success(request, f'{produto.nome} foi adicionado ao carrinho.')
+        
+    return redirect('doce_gustu_app:carrinho')
+    
+# View para remover um item do carrinho
+def remover_carrinho(request, item_id):
+    if not request.user.is_authenticated:
+        messages.warning(request, 'Faça login para gerenciar seu carrinho.')
+        return redirect('doce_gustu_app:login')
+        
+    try:
+        item = get_object_or_404(ItemCarrinho, id=item_id, carrinho__cliente=request.user)
+        item.delete()
+        messages.success(request, f'Item removido do carrinho.')
+    except Exception as e:
+        messages.error(request, f'Erro ao remover item: {e}')
+        
+    return redirect('doce_gustu_app:carrinho')
+
+# View para aumentar a quantidade de um item no carrinho
+def aumentar_quantidade(request, item_id):
+    if not request.user.is_authenticated:
+        messages.warning(request, 'Faça login para gerenciar seu carrinho.')
+        return redirect('doce_gustu_app:login')
+        
+    try:
+        item = get_object_or_404(ItemCarrinho, id=item_id, carrinho__cliente=request.user)
+        item.quantidade += 1
+        item.subtotal = item.quantidade * item.produto.preco
+        item.save()
+        messages.success(request, f'Quantidade de {item.produto.nome} aumentada.')
+    except Exception as e:
+        messages.error(request, f'Erro ao aumentar a quantidade: {e}')
+        
+    return redirect('doce_gustu_app:carrinho')
+
+# View para diminuir a quantidade de um item no carrinho
+def diminuir_quantidade(request, item_id):
+    if not request.user.is_authenticated:
+        messages.warning(request, 'Faça login para gerenciar seu carrinho.')
+        return redirect('doce_gustu_app:login')
+        
+    try:
+        item = get_object_or_404(ItemCarrinho, id=item_id, carrinho__cliente=request.user)
+        if item.quantidade > 1:
+            item.quantidade -= 1
+            item.subtotal = item.quantidade * item.produto.preco
+            item.save()
+            messages.success(request, f'Quantidade de {item.produto.nome} diminuída.')
+        else:
+            messages.warning(request, 'Não é possível diminuir a quantidade para menos de 1.')
+    except Exception as e:
+        messages.error(request, f'Erro ao diminuir a quantidade: {e}')
+        
+    return redirect('doce_gustu_app:carrinho')
+
+# View para a página de cadastro de clientes
 def cliente_cadastro(request):
-    """
-    Renderiza a página de cadastro de cliente (cliente_cadastro.html).
-    """
     return render(request, 'cliente_cadastro.html')
 
 # View para a página do cliente logado
 def cliente_logado(request):
-    """
-    Renderiza a página do cliente logado (cliente_logado.html).
-    """
-    return render(request, 'cliente_logado.html')
+    if request.user.is_authenticated:
+        contexto = {
+            'cliente': request.user
+        }
+        return render(request, 'cliente_logado.html', contexto)
+    else:
+        messages.warning(request, 'Você precisa fazer login para acessar essa página.')
+        return redirect('doce_gustu_app:login')
 
-# View para a página de detalhes de um produto
+# View para a página de um único produto
 def produto(request, produto_id):
-    """
-    Renderiza a página de detalhes de um produto específico.
-    """
-    produto = get_object_or_404(Produto, id=produto_id)
-    
-    # Verificar se o produto já está no carrinho do usuário
+    produto = get_object_or_404(Produto, pk=produto_id)
     item_no_carrinho = None
+    
     if request.user.is_authenticated:
         try:
-            carrinho = Carrinho.objects.get(cliente=request.user)
-            item_no_carrinho = ItemCarrinho.objects.filter(
-                carrinho=carrinho, 
-                produto=produto
-            ).first()
-        except (Carrinho.DoesNotExist, ItemCarrinho.DoesNotExist):
+            carrinho_usuario = Carrinho.objects.get(cliente=request.user)
+            item_no_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho_usuario, produto=produto).first()
+        except Carrinho.DoesNotExist:
             pass
-    
+            
     contexto = {
         'produto': produto,
-        'item_no_carrinho': item_no_carrinho,  # Novo: informação se já está no carrinho
+        'item_no_carrinho': item_no_carrinho,
     }
-    
     return render(request, 'produto.html', contexto)
 
+# View para todos os doces
 def todos_doces(request):
-    """Renderiza a página com todos os doces"""
-    doces = Produto.objects.filter(categoria='doce')
-    contexto = {'produtos': doces, 'categoria': 'Doces'}
-    return render(request, 'categoria.html', contexto)
+    doces = Produto.objects.filter(categoria='doce').order_by('nome')
+    contexto = {'doces': doces}
+    return render(request, 'doces.html', contexto)
 
+# View para todos os salgados
 def todos_salgados(request):
-    """Renderiza a página com todos os salgados"""
-    salgados = Produto.objects.filter(categoria='salgado')
-    contexto = {'produtos': salgados, 'categoria': 'Salgados'}
-    return render(request, 'categoria.html', contexto)
+    salgados = Produto.objects.filter(categoria='salgado').order_by('nome')
+    contexto = {'salgados': salgados}
+    return render(request, 'salgados.html', contexto)
 
+# View para todas as bebidas
 def todos_bebidas(request):
-    """Renderiza a página com todos as bebidas"""
-    bebidas = Produto.objects.filter(categoria='bebida')
-    contexto = {'produtos': bebidas, 'categoria': 'Bebidas'}
-    return render(request, 'categoria.html', contexto)
-
-def adicionar_carrinho(request, produto_id):
-    """Adiciona um produto ao carrinho"""
-    print("=" * 60)
-    print("🎯 DEBUG: ADICIONAR CARRINHO FOI CHAMADO!")
-    print("=" * 60)
-    print(f"📝 Método: {request.method}")
-    print(f"👤 Usuário: {request.user}")
-    print(f"🔐 Está autenticado: {request.user.is_authenticated}")
+    bebidas = Produto.objects.filter(categoria='bebida').order_by('nome')
+    contexto = {'bebidas': bebidas}
+    return render(request, 'bebidas.html', contexto)
     
-    if not request.user.is_authenticated:
-        print("❌ DEBUG: Usuário NÃO está logado - redirecionando para login")
-        messages.warning(request, 'Você precisa fazer login para adicionar itens ao carrinho.')
-        return redirect('doce_gustu_app:login')
-    else:
-        print("✅ DEBUG: Usuário ESTÁ logado")
-    
-    # Verifica se é um POST
-    if request.method != 'POST':
-        print("❌ DEBUG: Não é método POST - é:", request.method)
-        messages.error(request, 'Método inválido.')
-        return redirect('doce_gustu_app:produto', produto_id=produto_id)
-    
-    print("✅ DEBUG: É método POST")
-    
-    # Pega dados do formulário
-    quantidade = request.POST.get('quantidade', '1')
-    observacoes = request.POST.get('observacoes', '')
-    print(f"📦 Quantidade: {quantidade}")
-    print(f"📝 Observações: {observacoes}")
-    
-    # Converte quantidade para número
-    try:
-        quantidade = int(quantidade)
-    except ValueError:
-        print("❌ DEBUG: Quantidade inválida")
-        messages.error(request, 'Quantidade inválida.')
-        return redirect('doce_gustu_app:produto', produto_id=produto_id)
-    
-    # Busca o produto
-    try:
-        produto = Produto.objects.get(id=produto_id)
-        print(f"📦 Produto: {produto.nome} (ID: {produto.id})")
-    except Produto.DoesNotExist:
-        print("❌ DEBUG: Produto não encontrado")
-        messages.error(request, 'Produto não encontrado.')
-        return redirect('doce_gustu_app:home')
-    
-    # PASSO 1: Pegar ou criar carrinho
-    print("🛒 PASSO 1: Criando/pegando carrinho...")
-    try:
-        carrinho, created = Carrinho.objects.get_or_create(cliente=request.user)
-        print(f"✅ Carrinho: {carrinho.id}, Criado: {created}")
-    except Exception as e:
-        print(f"❌ ERRO ao criar carrinho: {e}")
-        messages.error(request, 'Erro ao acessar carrinho.')
-        return redirect('doce_gustu_app:produto', produto_id=produto.id)
-    
-    # PASSO 2: Adicionar item ao carrinho
-    print("📦 PASSO 2: Adicionando item...")
-    try:
-        item, item_created = ItemCarrinho.objects.get_or_create(
-            carrinho=carrinho,
-            produto=produto,
-            defaults={'quantidade': quantidade, 'observacoes': observacoes}
-        )
-        
-        print(f"✅ Item: {item}, Item criado: {item_created}")
-        
-        # Se já existir, atualizar a quantidade
-        if not item_created:
-            print("📈 Item já existe - atualizando quantidade...")
-            item.quantidade += quantidade
-            if observacoes:
-                item.observacoes = observacoes
-            item.save()
-            print(f"✅ Quantidade atualizada: {item.quantidade}")
-        
-        messages.success(request, f'{quantidade}x {produto.nome} adicionado ao carrinho!')
-        print("🎉 Sucesso: Produto adicionado ao carrinho!")
-        
-    except Exception as e:
-        print(f"❌ ERRO ao adicionar item: {e}")
-        messages.error(request, 'Erro ao adicionar produto ao carrinho.')
-    
-    print("🔄 Redirecionando de volta para o produto...")
-    # ↓↓↓↓ ESTA É A LINHA IMPORTANTE DO PASSO 3 ↓↓↓↓
-    return redirect('doce_gustu_app:produto', produto_id=produto.id)
-
-
+# View para editar item do carrinho
 def editar_item_carrinho(request, produto_id):
-    """Edita um item existente no carrinho"""
-    if not request.user.is_authenticated:
-        messages.warning(request, 'Você precisa fazer login.')
-        return redirect('doce_gustu_app:login')
-    
-    if request.method != 'POST':
-        messages.error(request, 'Método inválido.')
-        return redirect('doce_gustu_app:produto', produto_id=produto_id)
-    
-    produto = get_object_or_404(Produto, id=produto_id)
-    nova_quantidade = request.POST.get('quantidade')
-    novas_observacoes = request.POST.get('observacoes', '')
-    
-    try:
-        # Converte quantidade para número
-        nova_quantidade = int(nova_quantidade)
-        if nova_quantidade < 1:
-            raise ValueError
-    except (ValueError, TypeError):
-        messages.error(request, 'Quantidade inválida.')
-        return redirect('doce_gustu_app:produto', produto_id=produto_id)
-    
-    try:
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        item = ItemCarrinho.objects.get(carrinho=carrinho, produto=produto)
+    if request.method == 'POST':
+        # Assegura que o usuário está logado
+        if not request.user.is_authenticated:
+            messages.warning(request, 'Faça login para editar o carrinho.')
+            return redirect('doce_gustu_app:login')
+
+        produto = get_object_or_404(Produto, id=produto_id)
+        carrinho_usuario = get_object_or_404(Carrinho, cliente=request.user)
         
-        # Atualiza quantidade e observações
+        # Pega o item do carrinho
+        item = get_object_or_404(ItemCarrinho, carrinho=carrinho_usuario, produto=produto)
+        
+        # Pega a nova quantidade e observações do formulário
+        nova_quantidade = int(request.POST.get('quantidade', item.quantidade))
+        novas_observacoes = request.POST.get('observacoes', '').strip()
+
+        # Atualiza o item
         item.quantidade = nova_quantidade
         item.observacoes = novas_observacoes
+        item.subtotal = nova_quantidade * produto.preco
         item.save()
         
-        messages.success(request, f'Pedido de {produto.nome} atualizado!')
+        messages.success(request, f'Item {produto.nome} foi atualizado no carrinho.')
         
-    except (Carrinho.DoesNotExist, ItemCarrinho.DoesNotExist):
-        messages.error(request, 'Item não encontrado no carrinho.')
-    
     return redirect('doce_gustu_app:produto', produto_id=produto_id)
-
-def remover_carrinho(request, item_id):
-    """Remove um item do carrinho"""
-    print(f"🔴 DEBUG: REMOVER ITEM - ID: {item_id}")
     
-    if not request.user.is_authenticated:
-        messages.warning(request, 'Você precisa fazer login.')
-        return redirect('doce_gustu_app:login')
-    
-    if request.method != 'POST':
-        messages.error(request, 'Método inválido.')
-        return redirect('doce_gustu_app:carrinho')
-    
-    try:
-        # Busca o item específico no carrinho do usuário
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        item = ItemCarrinho.objects.get(id=item_id, carrinho=carrinho)
-        
-        # Remove o item
-        produto_nome = item.produto.nome
-        item.delete()
-        
-        messages.success(request, f'{produto_nome} removido do carrinho!')
-        print(f"✅ Item {item_id} removido com sucesso!")
-        
-    except (Carrinho.DoesNotExist, ItemCarrinho.DoesNotExist):
-        messages.error(request, 'Item não encontrado no carrinho.')
-        print(f"❌ Item {item_id} não encontrado!")
-    
-    return redirect('doce_gustu_app:carrinho')
-
-def aumentar_quantidade(request, item_id):
-    """Aumenta a quantidade de um item no carrinho"""
-    print(f"📈 DEBUG: AUMENTAR QUANTIDADE - ID: {item_id}")
-    
-    if not request.user.is_authenticated:
-        messages.warning(request, 'Você precisa fazer login.')
-        return redirect('doce_gustu_app:login')
-    
-    if request.method != 'POST':
-        messages.error(request, 'Método inválido.')
-        return redirect('doce_gustu_app:carrinho')
-    
-    try:
-        # Busca o item específico
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        item = ItemCarrinho.objects.get(id=item_id, carrinho=carrinho)
-        
-        # Aumenta a quantidade
-        item.quantidade += 1
-        item.save()
-        
-        messages.success(request, f'Quantidade de {item.produto.nome} aumentada!')
-        print(f"✅ Quantidade aumentada para {item.quantidade}")
-        
-    except (Carrinho.DoesNotExist, ItemCarrinho.DoesNotExist):
-        messages.error(request, 'Item não encontrado no carrinho.')
-        print(f"❌ Item {item_id} não encontrado!")
-    
-    return redirect('doce_gustu_app:carrinho')
-
-def diminuir_quantidade(request, item_id):
-    """Diminui a quantidade de um item no carrinho"""
-    print(f"📉 DEBUG: DIMINUIR QUANTIDADE - ID: {item_id}")
-    
-    if not request.user.is_authenticated:
-        messages.warning(request, 'Você precisa fazer login.')
-        return redirect('doce_gustu_app:login')
-    
-    if request.method != 'POST':
-        messages.error(request, 'Método inválido.')
-        return redirect('doce_gustu_app:carrinho')
-    
-    try:
-        # Busca o item específico
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        item = ItemCarrinho.objects.get(id=item_id, carrinho=carrinho)
-        
-        # Diminui a quantidade (mínimo 1)
-        if item.quantidade > 1:
-            item.quantidade -= 1
-            item.save()
-            messages.success(request, f'Quantidade de {item.produto.nome} diminuída!')
-            print(f"✅ Quantidade diminuída para {item.quantidade}")
-        else:
-            # Se quantidade for 1, remove o item
-            produto_nome = item.produto.nome
-            item.delete()
-            messages.success(request, f'{produto_nome} removido do carrinho!')
-            print(f"✅ Item removido (quantidade era 1)")
-        
-    except (Carrinho.DoesNotExist, ItemCarrinho.DoesNotExist):
-        messages.error(request, 'Item não encontrado no carrinho.')
-        print(f"❌ Item {item_id} não encontrado!")
-    
-    return redirect('doce_gustu_app:carrinho')
-
+# View para a página de finalização do pedido
 def finalizar_pedido(request):
-    """
-    Redireciona para a página de pagamento
-    """
-    print("🔄 DEBUG: REDIRECIONANDO PARA PAGAMENTO")
-    
     if not request.user.is_authenticated:
-        messages.warning(request, 'Você precisa fazer login.')
+        messages.warning(request, 'Você precisa estar logado para finalizar o pedido.')
         return redirect('doce_gustu_app:login')
-    
-    # Verifica se o carrinho tem itens
+
     try:
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        itens = ItemCarrinho.objects.filter(carrinho=carrinho)
+        carrinho_usuario = get_object_or_404(Carrinho, cliente=request.user)
+        itens_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho_usuario)
         
-        if not itens.exists():
-            messages.warning(request, 'Seu carrinho está vazio!')
+        if not itens_carrinho.exists():
+            messages.warning(request, 'Seu carrinho está vazio.')
             return redirect('doce_gustu_app:carrinho')
             
-    except Carrinho.DoesNotExist:
-        messages.warning(request, 'Seu carrinho está vazio!')
-        return redirect('doce_gustu_app:carrinho')
-    
-    # Redireciona para a página de pagamento
-    return redirect('doce_gustu_app:pagamento')
-
-def pagamento(request):
-    """
-    Página de pagamento/checkout
-    """
-    print("💳 DEBUG: PÁGINA DE PAGAMENTO")
-    
-    if not request.user.is_authenticated:
-        messages.warning(request, 'Você precisa fazer login para finalizar a compra.')
-        return redirect('doce_gustu_app:login')
-    
-    try:
-        # Busca o carrinho do usuário
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        itens_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho).select_related('produto')
+        total_carrinho = itens_carrinho.aggregate(Sum('subtotal'))['subtotal__sum'] or 0.00
         
-        if not itens_carrinho.exists():
-            messages.warning(request, 'Seu carrinho está vazio!')
-            return redirect('doce_gustu_app:carrinho')
+        # Pega os endereços do cliente
+        enderecos = Endereco.objects.filter(cliente=request.user)
         
-        # Calcula o total
-        total_carrinho = sum(item.subtotal for item in itens_carrinho)
+        # Opcional: define um endereço padrão (o primeiro ou o marcado como principal)
+        endereco_padrao = enderecos.filter(principal=True).first()
+        if not endereco_padrao and enderecos.exists():
+            endereco_padrao = enderecos.first()
+            
+        contexto = {
+            'itens_carrinho': itens_carrinho,
+            'total_carrinho': total_carrinho,
+            'enderecos': enderecos,
+            'endereco_padrao': endereco_padrao,
+        }
         
-        # Busca endereços do cliente
-        enderecos = request.user.enderecos.all()
-        
-    except Carrinho.DoesNotExist:
-        messages.warning(request, 'Seu carrinho está vazio!')
-        return redirect('doce_gustu_app:carrinho')
-    
-    contexto = {
-        'itens_carrinho': itens_carrinho,
-        'total_carrinho': total_carrinho,
-        'enderecos': enderecos,
-        'usuario': request.user,  # ← ADICIONE ESTA LINHA
-    }
-    
-    return render(request, 'pagamento.html', contexto)
-
-def processar_pagamento(request):
-    """
-    Processa o pagamento e cria o pedido
-    """
-    print("💰 DEBUG: PROCESSANDO PAGAMENTO")
-    
-    if not request.user.is_authenticated:
-        messages.warning(request, 'Você precisa fazer login.')
-        return redirect('doce_gustu_app:login')
-    
-    if request.method != 'POST':
-        messages.error(request, 'Método inválido.')
-        return redirect('doce_gustu_app:pagamento')
-    
-    try:
-        # Busca dados do formulário
-        endereco_id = request.POST.get('endereco_id')
-        forma_pagamento = request.POST.get('forma_pagamento')
-        observacoes = request.POST.get('observacoes', '')
-        
-        # Busca carrinho e itens
-        carrinho = Carrinho.objects.get(cliente=request.user)
-        itens_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho)
-        
-        if not itens_carrinho.exists():
-            messages.warning(request, 'Seu carrinho está vazio!')
-            return redirect('doce_gustu_app:carrinho')
-        
-        # Calcula total
-        total = sum(item.subtotal for item in itens_carrinho)
-        
-        # Cria o pedido
-        pedido = Pedido.objects.create(
-            cliente=request.user,
-            endereco_entrega_id=endereco_id,
-            forma_pagamento=forma_pagamento,
-            observacoes=observacoes,
-            total=total
-        )
-        
-        # Adiciona itens ao pedido
-        for item in itens_carrinho:
-            ItemPedido.objects.create(
-                pedido=pedido,
-                produto=item.produto,
-                quantidade=item.quantidade,
-                preco_unitario=item.produto.preco,
-                observacoes=item.observacoes
-            )
-        
-        # Limpa o carrinho
-        itens_carrinho.delete()
-        
-        messages.success(request, f'Pedido #{pedido.id} realizado com sucesso!')
-        print(f"✅ Pedido #{pedido.id} criado com sucesso!")
-        
-        return redirect('doce_gustu_app:cliente_logado')  # Ou uma página de confirmação
+        return render(request, 'finalizar_pedido.html', contexto)
         
     except Exception as e:
-        print(f"❌ ERRO ao processar pagamento: {e}")
-        messages.error(request, 'Erro ao processar pedido. Tente novamente.')
-        return redirect('doce_gustu_app:pagamento')
-    
-def criar_cliente(request):
-    """
-    Processa o formulário de cadastro de cliente e seus endereços
-    """
-    print("👤 DEBUG: CRIANDO CLIENTE COM ENDEREÇOS")
-    print(f"📝 Método: {request.method}")
-    
-    if request.method != 'POST':
-        messages.error(request, 'Método inválido.')
-        return redirect('doce_gustu_app:cliente_cadastro')
-    
+        print(f"Erro ao finalizar pedido: {e}")
+        messages.error(request, 'Ocorreu um erro ao finalizar o pedido. Tente novamente.')
+        return redirect('doce_gustu_app:carrinho')
+
+# View para a página de pagamento
+def pagamento(request):
+    if not request.user.is_authenticated:
+        messages.warning(request, 'Você precisa estar logado para acessar o pagamento.')
+        return redirect('doce_gustu_app:login')
+        
     try:
-        # Pega dados do formulário
-        nome = request.POST.get('nome')
-        email = request.POST.get('email')
-        telefone = request.POST.get('telefone')
-        senha = request.POST.get('senha')
-        confirmar_senha = request.POST.get('confirmar_senha')
+        carrinho_usuario = get_object_or_404(Carrinho, cliente=request.user)
+        total_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho_usuario).aggregate(Sum('subtotal'))['subtotal__sum'] or 0.00
+
+        if total_carrinho == 0:
+            messages.warning(request, 'Seu carrinho está vazio. Adicione itens antes de prosseguir.')
+            return redirect('doce_gustu_app:carrinho')
+            
+        contexto = {
+            'total_carrinho': total_carrinho,
+        }
+        return render(request, 'pagamento.html', contexto)
+
+    except Exception as e:
+        messages.error(request, 'Ocorreu um erro ao processar o pagamento. Tente novamente.')
+        return redirect('doce_gustu_app:carrinho')
+
+# View para processar o pagamento
+def processar_pagamento(request):
+    if request.method == 'POST':
+        if not request.user.is_authenticated:
+            messages.warning(request, 'Você precisa estar logado para processar o pagamento.')
+            return redirect('doce_gustu_app:login')
         
-        print(f"📝 Dados recebidos:")
-        print(f"   Nome: {nome}")
-        print(f"   Email: {email}") 
-        print(f"   Telefone: {telefone}")
-        print(f"   Senha: {senha}")
-        print(f"   Confirmar Senha: {confirmar_senha}")
-        
-        # Validações básicas
-        if not all([nome, email, telefone, senha, confirmar_senha]):
-            messages.error(request, 'Todos os campos são obrigatórios.')
-            return redirect('doce_gustu_app:cliente_cadastro')
-        
-        if senha != confirmar_senha:
-            messages.error(request, 'As senhas não coincidem.')
-            return redirect('doce_gustu_app:cliente_cadastro')
-        
-        if len(senha) != 6 or not senha.isdigit():
-            messages.error(request, 'A senha deve ter exatamente 6 números.')
-            return redirect('doce_gustu_app:cliente_cadastro')
-        
-        # Limpa formatação do telefone (remove parênteses, traços, espaços)
-        telefone_limpo = ''.join(filter(str.isdigit, telefone))
-        print(f"📱 Telefone limpo: {telefone_limpo}")
-        
-        # Verifica se tem 10 ou 11 dígitos (com DDD)
-        if len(telefone_limpo) not in [10, 11]:
-            messages.error(request, 'Telefone deve ter 10 ou 11 dígitos (com DDD).')
-            return redirect('doce_gustu_app:cliente_cadastro')
-        
-        # Verifica se telefone já existe (é único)
-        from .models import Cliente
-        if Cliente.objects.filter(telefone=telefone_limpo).exists():
-            messages.error(request, 'Este telefone já está cadastrado.')
-            return redirect('doce_gustu_app:cliente_cadastro')
-        
-        # Verifica se email já existe (é único)
-        if Cliente.objects.filter(email=email).exists():
-            messages.error(request, 'Este email já está cadastrado.')
-            return redirect('doce_gustu_app:cliente_cadastro')
-        
-        # Cria o usuário - TELEFONE É O USERNAME (LOGIN)
-        from django.contrib.auth import login
-        
-        print("🎯 Tentando criar cliente...")
-        cliente = Cliente.objects.create_user(
-            telefone=telefone_limpo,
-            nome=nome,
-            email=email,
-            password=senha
-        )
-        
-        print(f"✅ Cliente criado com sucesso: {cliente}")
-        
-        # PASSO IMPORTANTE: CRIAR ENDEREÇOS
-        print("🏠 Processando endereços...")
-        from .models import Endereco
-        
-        # Contador para endereços
-        endereco_count = 0
-        
-        # Processa cada endereço do formulário
-        for key in request.POST:
-            if key.startswith('enderecos['):
-                # Extrai o índice do endereço
-                index = key.split('[')[1].split(']')[0]
-                campo = key.split('[')[2].split(']')[0]
-                
-                # Pega os dados do endereço
-                if f'enderecos[{index}][apelido]' in request.POST:
+        try:
+            carrinho_usuario = get_object_or_404(Carrinho, cliente=request.user)
+            itens_carrinho = ItemCarrinho.objects.filter(carrinho=carrinho_usuario)
+            
+            # 1. Pega os dados do formulário
+            forma_pagamento = request.POST.get('forma_pagamento')
+            tipo_entrega = request.POST.get('tipo_entrega')
+            
+            # Validações básicas
+            if not forma_pagamento or not tipo_entrega:
+                messages.error(request, 'Por favor, selecione uma forma de pagamento e um tipo de entrega.')
+                return redirect('doce_gustu_app:finalizar_pedido')
+            
+            # Lógica para criar o pedido e transferir os itens do carrinho
+            total_pedido = itens_carrinho.aggregate(Sum('subtotal'))['subtotal__sum'] or 0.00
+            
+            novo_pedido = Pedido.objects.create(
+                cliente=request.user,
+                total=total_pedido,
+                status='pendente',
+                forma_pagamento=forma_pagamento,
+                tipo_entrega=tipo_entrega
+            )
+            
+            for item_carrinho in itens_carrinho:
+                ItemPedido.objects.create(
+                    pedido=novo_pedido,
+                    produto=item_carrinho.produto,
+                    quantidade=item_carrinho.quantidade,
+                    subtotal=item_carrinho.subtotal
+                )
+            
+            # Limpa o carrinho após a criação do pedido
+            itens_carrinho.delete()
+            carrinho_usuario.save()
+            
+            messages.success(request, 'Seu pedido foi realizado com sucesso! Em breve entraremos em contato.')
+            return redirect('doce_gustu_app:home')
+            
+        except Exception as e:
+            messages.error(request, f'Ocorreu um erro ao processar o pagamento: {e}')
+            return redirect('doce_gustu_app:finalizar_pedido')
+            
+    messages.error(request, 'Método de requisição inválido.')
+    return redirect('doce_gustu_app:finalizar_pedido')
+    
+# View para criar um cliente
+def criar_cliente(request):
+    print("Iniciando a criação de cliente...")
+    if request.method == 'POST':
+        try:
+            # Pega os dados do formulário
+            nome = request.POST.get('nome')
+            telefone = request.POST.get('telefone')
+            senha = request.POST.get('senha')
+            
+            print(f"✅ Dados recebidos. Nome: {nome}, Telefone: {telefone}")
+            
+            # Cria o cliente (usuário)
+            cliente = Cliente.objects.create_user(
+                telefone=telefone,
+                nome=nome,
+                password=senha,
+                username=telefone  # Usa o telefone como username para autenticação
+            )
+            print("✅ Cliente criado com sucesso.")
+            
+            # Processa os endereços
+            endereco_count = 0
+            # Itera sobre os campos de endereço
+            for index in range(5):  # Limita a 5 endereços para evitar sobrecarga
+                if f'enderecos[{index}][rua]' in request.POST:
+                    print(f"  Encontrado formulário de endereço na posição {index}")
                     apelido = request.POST.get(f'enderecos[{index}][apelido]')
                     rua = request.POST.get(f'enderecos[{index}][rua]')
+                    numero = request.POST.get(f'enderecos[{index}][numero]', 'S/N')
                     bairro = request.POST.get(f'enderecos[{index}][bairro]')
                     cep = request.POST.get(f'enderecos[{index}][cep]')
                     referencia = request.POST.get(f'enderecos[{index}][referencia]', '')
@@ -568,27 +414,27 @@ def criar_cliente(request):
                             cliente=cliente,
                             apelido=apelido,
                             rua=rua,
-                            numero='S/N',  # Default se não tiver número
+                            numero=numero,
                             bairro=bairro,
                             cep=cep,
                             referencia=referencia,
-                            principal=(endereco_count == 0)  # Primeiro endereço é principal
+                            principal=(endereco_count == 0)
                         )
                         endereco_count += 1
                         print(f"   ✅ Endereço criado: {apelido}")
-        
-        print(f"🏠 Total de endereços criados: {endereco_count}")
-        
-        # Faz login automático
-        login(request, cliente)
-        messages.success(request, f'Bem-vindo(a), {nome}! Cadastro realizado com {endereco_count} endereço(s).')
-        print(f"🎉 Login automático realizado para: {cliente.telefone}")
-        
-        return redirect('doce_gustu_app:home')
-        
-    except Exception as e:
-        print(f"❌ ERRO ao criar cliente: {e}")
-        import traceback
-        traceback.print_exc()
-        messages.error(request, f'Erro ao criar conta. Tente novamente.')
-        return redirect('doce_gustu_app:cliente_cadastro')
+            
+            print(f"🏠 Total de endereços criados: {endereco_count}")
+            
+            # Faz login automático
+            login(request, cliente)
+            messages.success(request, f'Bem-vindo(a), {nome}! Cadastro realizado com {endereco_count} endereço(s).')
+            print(f"🎉 Login automático realizado para: {cliente.telefone}")
+            
+            return redirect('doce_gustu_app:home')
+            
+        except Exception as e:
+            print(f"❌ ERRO ao criar cliente: {e}")
+            import traceback
+            traceback.print_exc()
+            messages.error(request, f'Erro ao criar conta. Tente novamente.')
+            return redirect('doce_gustu_app:cliente_cadastro')

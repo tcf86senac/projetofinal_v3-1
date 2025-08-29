@@ -5,32 +5,35 @@ from .models import Cliente, Endereco, Produto, Carrinho, ItemCarrinho, Pedido, 
 # Configuração personalizada para o Cliente no admin
 class ClienteAdmin(UserAdmin):
     # Campos que serão mostrados na listagem
-    list_display = ('telefone', 'nome', 'email', 'is_active', 'date_joined')
-    
+    list_display = ('telefone', 'nome', 'is_active', 'data_cadastro')
+
     # Campos que podem ser usados para buscar
-    search_fields = ('telefone', 'nome', 'email')
-    
+    search_fields = ('telefone', 'nome')
+
     # Filtros laterais
-    list_filter = ('is_active', 'is_staff', 'date_joined')
-    
+    list_filter = ('is_active', 'is_staff', 'data_cadastro')
+
     # Ordenação padrão
-    ordering = ('-date_joined',)
-    
+    ordering = ('-data_cadastro',)
+
     # Campos que aparecem na edição (agrupados)
     fieldsets = (
         (None, {'fields': ('telefone', 'password')}),
-        ('Informações Pessoais', {'fields': ('nome', 'email')}),
+        ('Informações Pessoais', {'fields': ('nome',)}),
         ('Permissões', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Datas Importantes', {'fields': ('last_login', 'date_joined')}),
+        ('Datas Importantes', {'fields': ('last_login', 'data_cadastro')}),
     )
-    
+
     # Campos que aparecem ao adicionar novo usuário
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('telefone', 'nome', 'email', 'password1', 'password2'),
+            'fields': ('telefone', 'nome', 'password', 'password2'),
         }),
     )
+
+    # Adicionando o campo 'telefone' ao 'list_display'
+    list_display_links = ('telefone', 'nome')
 
 # Configuração para Endereços
 class EnderecoAdmin(admin.ModelAdmin):

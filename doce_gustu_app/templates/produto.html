@@ -3,12 +3,12 @@
 {% block miolo %}
 <div class="container mt-4">
     <div class="row">
-        <!-- Imagem do Produto -->
         <div class="col-md-6">
-            <img src="{{ produto.imagem_url }}" class="img-fluid rounded" alt="{{ produto.nome }}">
+            <div class="img-quadrada rounded">
+                <img src="{{ produto.imagem_url }}" class="img-fluid" alt="{{ produto.nome }}">
+            </div>
         </div>
         
-        <!-- Informações do Produto -->
         <div class="col-md-6">
             <h1 class="mb-3">{{ produto.nome }}</h1>
             <p class="text-muted">{{ produto.get_categoria_display }}</p>
@@ -17,9 +17,7 @@
             
             <p class="mb-4">{{ produto.descricao }}</p>
             
-            <!-- Verifica se o produto já está no carrinho -->
             {% if item_no_carrinho %}
-                <!-- SE JÁ ESTIVER NO CARRINHO -->
                 <div class="alert alert-success" id="alert-carrinho">
                     <h5>✅ Item já adicionado ao carrinho!</h5>
                     <p class="mb-2">Quantidade: <span id="quantidade-atual">{{ item_no_carrinho.quantidade }}</span></p>
@@ -28,7 +26,6 @@
                     {% endif %}
                 </div>
                 
-                <!-- FORMULÁRIO DE EDIÇÃO (inicialmente escondido) -->
                 <div class="card mb-3" id="form-edicao" style="display: none;">
                     <div class="card-body">
                         <h5 class="card-title">✏️ Editar Pedido</h5>
@@ -58,7 +55,6 @@
                     </div>
                 </div>
                 
-                <!-- BOTÕES PRINCIPAIS (sempre visíveis) -->
                 <div class="d-grid gap-2 d-md-flex" id="botoes-principais">
                     <button type="button" class="btn btn-outline-primary me-2" onclick="mostrarEdicao()">
                         ✏️ Editar Pedido
@@ -78,7 +74,6 @@
                 </div>
                 
             {% else %}
-                <!-- SE NÃO ESTIVER NO CARRINHO -->
                 <form method="post" action="{% url 'doce_gustu_app:adicionar_carrinho' produto.id %}">
                     {% csrf_token %}
                     <div class="row mb-3">
@@ -108,7 +103,6 @@
     </div>
 </div>
 
-<!-- JavaScript para controlar a edição -->
 <script>
 function mostrarEdicao() {
     document.getElementById('form-edicao').style.display = 'block';
@@ -122,7 +116,6 @@ function cancelarEdicao() {
     document.getElementById('botoes-principais').style.display = 'flex';
 }
 
-// Se houver mensagens de sucesso após edição, mostra os botões normais
 {% if messages %}
     {% for message in messages %}
         {% if message.tags == 'success' %}
@@ -130,7 +123,6 @@ function cancelarEdicao() {
             document.getElementById('alert-carrinho').style.display = 'block';
             document.getElementById('botoes-principais').style.display = 'flex';
             
-            // Atualiza os valores exibidos
             document.getElementById('quantidade-atual').textContent = '{{ item_no_carrinho.quantidade }}';
             {% if item_no_carrinho.observacoes %}
                 document.getElementById('observacoes-atuais').textContent = '{{ item_no_carrinho.observacoes }}';

@@ -2,7 +2,6 @@
 
 {% block miolo %}
 <div class="container my-5">
-    <!-- Cabeçalho da página -->
     <div class="row mb-4">
         <div class="col-12 text-center">
             <h2 class="fw-bold">Todos os Salgados</h2>
@@ -10,20 +9,18 @@
         </div>
     </div>
 
-    <!-- Grid de produtos -->
     <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
         {% for salgado in salgados %}
         <div class="col">
             <div class="card h-100 shadow-sm">
-                <!-- Imagem do produto -->
-                <img src="{{ salgado.imagem_url }}" class="card-img-top" alt="{{ salgado.nome }}" style="height: 250px; object-fit: cover;">
+                <div class="img-quadrada card-img-top">
+                    <img src="{{ salgado.imagem_url }}" class="img-fluid" alt="{{ salgado.nome }}">
+                </div>
                 
                 <div class="card-body d-flex flex-column">
-                    <!-- Nome e descrição -->
                     <h5 class="card-title">{{ salgado.nome }}</h5>
                     <p class="card-text flex-grow-1">{{ salgado.descricao }}</p>
                     
-                    <!-- Preço e botão -->
                     <div class="mt-auto">
                         <p class="card-text fw-bold text-primary">R$ {{ salgado.preco }}</p>
                         <div class="d-grid">
@@ -36,7 +33,6 @@
             </div>
         </div>
         {% empty %}
-        <!-- Mensagem caso não haja salgados -->
         <div class="col-12 text-center py-5">
             <div class="alert alert-info" role="alert">
                 <h4 class="alert-heading">Nenhum salgado encontrado!</h4>

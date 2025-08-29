@@ -26,11 +26,11 @@
         .navbar-brand img {
             height: 200px;
             width: auto;
-            transition: transform 0.8s ease-in-out; /* Adiciona a transição para a animação */
+            transition: transform 0.8s ease-in-out;
         }
 
         .navbar-brand img:hover {
-            transform: scale(1.11); /* Aumenta a imagem em 5% ao passar o mouse */
+            transform: scale(1.11);
         }
 
         .btn-link, .nav-link, .dropdown-item {
@@ -92,99 +92,141 @@
 
         /* Alteração para as setas do carrossel */
         .carousel-control-prev-icon, .carousel-control-next-icon {
-            background-color: rgba(0, 0, 0, 0.5); /* Cor de fundo para as setas */
+            background-color: rgba(0, 0, 0, 0.5);
             border-radius: 50%;
-            width: 3rem; /* Aumento da largura */
-            height: 3rem; /* Aumento da altura */
+            width: 3rem;
+            height: 3rem;
+        }
+
+        /* MEDIA QUERY para responsividade */
+        @media (max-width: 991.98px) {
+            .navbar-brand img {
+                height: 100px;
+            }
+            .navbar .d-flex.flex-grow-1 {
+                display: none !important;
+            }
+        }
+        
+        /* NOVO ESTILO: Garante que as imagens dos produtos sejam quadradas */
+        .img-quadrada {
+            position: relative;
+            width: 100%;
+            /* Propriedade para manter a proporção 1:1 (quadrado) */
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+        }
+        .img-quadrada img {
+            width: 100%;
+            height: 100%;
+            /* Faz com que a imagem cubra todo o espaço, cortando o que for excesso */
+            object-fit: cover;
         }
     </style>
 </head>
 <body>
     <header class="container-fluid">
         <nav class="navbar navbar-expand-lg">
-            <div class="container d-flex justify-content-between align-items-center">
+            <div class="container-fluid">
                 <a class="navbar-brand" href="{% url 'doce_gustu_app:home' %}">
-                    <img src="https://i.imgur.com/ztuX79M.png" alt="Logotipo da Loja" class="img-fluid">
+                    <img src="https://i.imgur.com/ztuX79M.png" alt="Logotipo da Loja">
                 </a>
 
-                <div class="d-flex align-items-center flex-grow-1 mx-4">
-                    <form class="d-flex flex-grow-1 me-3" role="search">
-                        <input class="form-control me-2 rounded-pill" type="search" placeholder="Busque por produtos..." aria-label="Search">
-                        <button class="btn btn-busca rounded-pill" type="submit">Buscar</button>
-                    </form>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <div class="d-flex align-items-center mx-auto mb-2 mb-lg-0 w-50">
+                        <form class="d-flex w-100" role="search">
+                            <input class="form-control rounded-pill" type="search" placeholder="Busque por produtos..." aria-label="Search">
+                            <button class="btn btn-busca rounded-pill ms-2" type="submit">Buscar</button>
+                        </form>
                 </div>
-                
-                <div class="d-flex align-items-center">
-                    <!-- ÚNICO BOTÃO DE ACESSO: Perfil/Login -->
-                    <a href="{% url 'doce_gustu_app:login' %}" class="btn btn-link me-3 text-decoration-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
-                            <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
-                            <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
-                        </svg>
-                        <span class="d-none d-lg-inline-block ms-1">Perfil</span>
-                    </a>
-                    
-                    <a href="{% url 'doce_gustu_app:carrinho' %}" class="btn btn-link text-decoration-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-cart-fill" viewBox="0 0 16 16">
-                            <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-                        </svg>
-                        <span class="d-none d-lg-inline-block ms-1">Carrinho</span>
-                    </a>
+                <ul class="navbar-nav d-flex align-items-center">
+                        {% comment %} <li class="nav-item">
+                            <a href="{% url 'doce_gustu_app:login' %}" class="btn btn-link me-3 text-decoration-none d-flex align-items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                                    <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                                    <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+                                </svg>
+                                <span class="ms-1">Perfil</span>
+                            </a>
+                        </li> {% endcomment %}
+                        <li class="nav-item">
+                            {% if user.is_authenticated %}
+                                <a href="#" class="btn btn-link me-3 text-decoration-none d-flex align-items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                                        <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                                        <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+                                    </svg>
+                                    <span class="ms-1">Olá, {{ user.username }}</span>
+                                </a>
+                                {% else %}
+                                <a href="{% url 'doce_gustu_app:login' %}" class="btn btn-link me-3 text-decoration-none d-flex align-items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                                        <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                                        <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+                                    </svg>
+                                    <span class="ms-1">Faça seu login</span>
+                                </a>
+                            {% endif %}
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'doce_gustu_app:carrinho' %}" class="btn btn-link text-decoration-none d-flex align-items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-cart-fill" viewBox="0 0 16 16">
+                                    <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                                </svg>
+                                <span class="ms-1">Carrinho</span>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </nav>
 
         <div class="container-fluid menu-faixa py-3">
-            <div class="container d-flex justify-content-center">
-                <!-- Dropdown de Doces -->
-                <div class="btn-group mx-4"> 
+            <div class="container d-flex justify-content-center flex-wrap">
+                <div class="btn-group mx-2 my-1">
                     <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                         Doces
                     </button>
                     <ul class="dropdown-menu">
-                        <!-- Iterando sobre a lista de doces. A view precisa passar 'doces' no contexto. -->
                         {% for doce in doces %}
                             <li><a class="dropdown-item" href="{% url 'doce_gustu_app:produto' doce.id %}">{{ doce.nome }}</a></li>
                         {% empty %}
                             <li><a class="dropdown-item" href="#">Nenhum doce encontrado</a></li>
                         {% endfor %}
-                        <!-- Adicionando o botão de '+' se houver mais de 3 doces (opcional) -->
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{% url 'doce_gustu_app:todos_doces' %}">+ Ver todos os doces</a></li>
                     </ul>
                 </div>
                 
-                <!-- Dropdown de Salgados -->
-                <div class="btn-group mx-4">
+                <div class="btn-group mx-2 my-1">
                     <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                         Salgados
                     </button>
                     <ul class="dropdown-menu">
-                        <!-- Iterando sobre a lista de salgados. A view precisa passar 'salgados' no contexto. -->
                         {% for salgado in salgados %}
                             <li><a class="dropdown-item" href="{% url 'doce_gustu_app:produto' salgado.id %}">{{ salgado.nome }}</a></li>
                         {% empty %}
                             <li><a class="dropdown-item" href="#">Nenhum salgado encontrado</a></li>
                         {% endfor %}
-                        <!-- Adicionando o botão de '+' se houver mais de 3 salgados (opcional) -->
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{% url 'doce_gustu_app:todos_salgados' %}">+ Ver todos os salgados</a></li>
                     </ul>
                 </div>
                 
-                <!-- Dropdown de Bebidas -->
-                <div class="btn-group mx-4">
+                <div class="btn-group mx-2 my-1">
                     <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                         Bebidas
                     </button>
                     <ul class="dropdown-menu">
-                        <!-- Iterando sobre a lista de bebidas. A view precisa passar 'bebidas' no contexto. -->
                         {% for bebida in bebidas %}
                             <li><a class="dropdown-item" href="{% url 'doce_gustu_app:produto' bebida.id %}">{{ bebida.nome }}</a></li>
                         {% empty %}
                             <li><a class="dropdown-item" href="#">Nenhuma bebida encontrada</a></li>
                         {% endfor %}
-                        <!-- Adicionando o botão de '+' se houver mais de 3 bebidas (opcional) -->
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{% url 'doce_gustu_app:todos_bebidas' %}">+ Ver todas as bebidas</a></li>
                     </ul>

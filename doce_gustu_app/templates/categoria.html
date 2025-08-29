@@ -8,7 +8,9 @@
         {% for produto in produtos %}
         <div class="col-md-4 mb-4">
             <div class="card h-100">
-                <img src="{{ produto.imagem_url }}" class="card-img-top" alt="{{ produto.nome }}">
+                <div class="img-quadrada card-img-top">
+                    <img src="{{ produto.imagem_url }}" class="img-fluid" alt="{{ produto.nome }}">
+                </div>
                 <div class="card-body">
                     <h5 class="card-title">{{ produto.nome }}</h5>
                     <p class="card-text">{{ produto.descricao|truncatewords:20 }}</p>
